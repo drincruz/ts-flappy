@@ -1,16 +1,18 @@
-import { Sprite } from "./sprite";
+import { Sprite } from "./Sprite";
 
 export class Obstacle extends Sprite {
-  constructor(x: number, y: number, width: number, height: number) {
-    super(x, y, width, height);
+  constructor(src: string, placeholderColor: string) {
+    super(src, placeholderColor);
   }
 
-  update(deltaTime: number): void {
-    this.x -= 100 * deltaTime; // Move obstacle to the left
-  }
-
-  draw(ctx: CanvasRenderingContext2D): void {
+  draw(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    width: number,
+    height: number
+  ): void {
     ctx.fillStyle = "green";
-    ctx.fillRect(this.x, this.y, this.width, this.height);
+    ctx.fillRect(x, y, width, height);
   }
 }

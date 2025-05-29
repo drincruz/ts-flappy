@@ -1,4 +1,4 @@
-import { Sprite } from "./Sprite";
+import { Sprite } from "./Sprite.js";
 
 // Canvas setup
 const canvas = document.getElementById("gameCanvas") as HTMLCanvasElement;
@@ -20,7 +20,7 @@ const bird = {
   velocityY: 0,
   gravity: 0.4,
   jumpStrength: -8,
-  sprite: new Sprite("../assets/ethan-sprite.png", "#f0db4f"), // Update the path here
+  sprite: new Sprite("../assets/bluebird-midflap.png", "#f0db4f"),
 };
 
 // Game loop
@@ -49,6 +49,8 @@ function update() {
 }
 
 function draw() {
+  if (!ctx) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   // Clear canvas (background is set by CSS, but good practice for dynamic backgrounds)
   ctx.fillStyle = "#70c5ce"; // Light blue background
   ctx.fillRect(0, 0, canvas.width, canvas.height);
