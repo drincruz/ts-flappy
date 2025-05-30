@@ -21,6 +21,7 @@ const PIPE_SPAWN_FRAME_INTERVAL = 100; // Spawn a new pipe pair roughly every 1.
 
 let obstacles: Obstacle[] = [];
 let frameCount = 0;
+let isGameOver = false;
 
 // Game variables
 const bird = {
@@ -73,8 +74,19 @@ function spawnPipePair() {
 function gameLoop() {
   update();
   draw();
+  if (!isGameOver) {
+    frameCount++;
+  }
   requestAnimationFrame(gameLoop);
-  frameCount++;
+}
+
+function resetGame() {
+  bird.y = canvas.height / 2;
+  bird.velocityY = 0;
+  obstacles = [];
+  frameCount = 0;
+  isGameOver = false;
+  // spawnPipePair(); // Optionally spawn one pair immediately to start
 }
 
 function update() {
@@ -82,22 +94,46 @@ function update() {
   bird.velocityY += bird.gravity;
   bird.y += bird.velocityY;
 
-  // Prevent bird from falling off screen (simple floor collision)
+  // Check for ground collision (Game Over)
   if (bird.y + bird.height > canvas.height) {
     bird.y = canvas.height - bird.height;
     bird.velocityY = 0;
+    isGameOver = true;
   }
 
-  // Prevent bird from going above screen
+  // Check for ceiling collision (Game Over)
   if (bird.y < 0) {
     bird.y = 0;
     bird.velocityY = 0;
+    isGameOver = true;
+  }
+
+  // If game is over from boundary collision, stop further updates for this frame
+  if (isGameOver) {
+    return;
   }
 
   // Update obstacles
   obstacles.forEach((obstacle) => {
     obstacle.update(PIPE_SPEED);
+
+    // Check for collision with this obstacle
+    if (
+      bird.x < obstacle.x + obstacle.width &&
+      bird.x + bird.width > obstacle.x &&
+      bird.y < obstacle.y + obstacle.height &&
+      bird.y + bird.height > obstacle.y
+    ) {
+      isGameOver = true;
+      // No need to check other obstacles once a collision is found
+      // The function will return shortly due to isGameOver check or naturally end.
+    }
   });
+
+  // If game is over from pipe collision, stop further updates for this frame
+  if (isGameOver) {
+    return;
+  }
 
   // Remove off-screen obstacles
   obstacles = obstacles.filter((obstacle) => obstacle.x + obstacle.width > 0);
@@ -116,20 +152,37 @@ function draw() {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // Draw bird
-  //   ctx.fillStyle = bird.color;
-  //   ctx.fillRect(bird.x, bird.y, bird.width, bird.height);
   bird.sprite.draw(ctx, bird.x, bird.y, bird.width, bird.height);
 
   // Draw obstacles
   obstacles.forEach((obstacle) => {
     obstacle.draw(ctx!); // ctx is guaranteed to be non-null here due to the check above
   });
+
+  // Draw Game Over screen if applicable
+  if (isGameOver) {
+    ctx.fillStyle = "rgba(0, 0, 0, 0.5)"; // Semi-transparent overlay
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.font = "40px Arial";
+    ctx.fillStyle = "white";
+    ctx.textAlign = "center";
+    ctx.fillText("Game Over", canvas.width / 2, canvas.height / 2 - 20);
+    ctx.font = "20px Arial";
+    ctx.fillText(
+      "Press R to Restart",
+      canvas.width / 2,
+      canvas.height / 2 + 20
+    );
+  }
 }
 
 // Handle input (jump on Spacebar press)
 document.addEventListener("keydown", (e) => {
-  if (e.code === "Space") {
+  if (e.code === "Space" && !isGameOver) {
     bird.velocityY = bird.jumpStrength;
+  } else if (e.code === "KeyR" && isGameOver) {
+    resetGame();
   }
 });
 
