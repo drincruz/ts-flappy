@@ -9,12 +9,17 @@ if (!ctx) {
   throw new Error("Failed to get 2D context");
 }
 
-canvas.width = 320; // Typical Flappy Bird width
-canvas.height = 480; // Typical Flappy Bird height
+canvas.width = 480; // Typical Flappy Bird width
+canvas.height = 640; // Typical Flappy Bird height
 
-// Obstacle constants
+// Game Mode
+type GameMode = "normal" | "easy";
+let currentGameMode: GameMode = "normal"; // Default mode
+
+// Obstacle constants based on mode
 const PIPE_WIDTH = 55;
-const PIPE_GAP_HEIGHT = 130; // The vertical space for the bird to pass through
+const NORMAL_PIPE_GAP_HEIGHT = 130; // Standard gap height
+const EASY_PIPE_GAP_HEIGHT = 200; // Wider gap for easy mode
 const PIPE_SPEED = 2;
 const MIN_PIPE_HEIGHT = 30; // Minimum height for a pipe segment
 const PIPE_SPAWN_FRAME_INTERVAL = 100; // Spawn a new pipe pair roughly every 1.6 seconds at 60FPS
@@ -22,6 +27,8 @@ const PIPE_SPAWN_FRAME_INTERVAL = 100; // Spawn a new pipe pair roughly every 1.
 let obstacles: Obstacle[] = [];
 let frameCount = 0;
 let isGameOver = false;
+let score = 0; // Variable to track the player's score
+let highScore = 0; // Variable to track the high score for the session
 
 // Game variables
 const bird = {
@@ -35,16 +42,24 @@ const bird = {
   sprite: new Sprite("../assets/bluebird-midflap.png", "#f0db4f"), // Ensure this path is correct relative to public/index.html
 };
 
+function getCurrentPipeGapHeight(): number {
+  return currentGameMode === "easy"
+    ? EASY_PIPE_GAP_HEIGHT
+    : NORMAL_PIPE_GAP_HEIGHT;
+}
+
 function spawnPipePair() {
+  const currentPipeGapHeight = getCurrentPipeGapHeight();
   // Calculate the Y position for the center of the gap
   // Ensures the gap is not too close to the top or bottom, and pipes have a minimum height
   const gapCenterY =
-    Math.random() * (canvas.height - 2 * MIN_PIPE_HEIGHT - PIPE_GAP_HEIGHT) +
+    Math.random() *
+      (canvas.height - 2 * MIN_PIPE_HEIGHT - currentPipeGapHeight) +
     MIN_PIPE_HEIGHT +
-    PIPE_GAP_HEIGHT / 2;
+    currentPipeGapHeight / 2;
 
-  const topPipeHeight = gapCenterY - PIPE_GAP_HEIGHT / 2;
-  const bottomPipeY = gapCenterY + PIPE_GAP_HEIGHT / 2;
+  const topPipeHeight = gapCenterY - currentPipeGapHeight / 2;
+  const bottomPipeY = gapCenterY + currentPipeGapHeight / 2;
   const bottomPipeHeight = canvas.height - bottomPipeY;
 
   // For actual pipe sprites, you'd use paths like "./assets/pipe-top.png"
@@ -54,7 +69,7 @@ function spawnPipePair() {
     0,
     PIPE_WIDTH,
     topPipeHeight,
-    "dummy-pipe-top.png",
+    "../assets/dummy-pipe-top.png",
     "green"
   );
   const bottomPipe = new Obstacle(
@@ -62,7 +77,7 @@ function spawnPipePair() {
     bottomPipeY,
     PIPE_WIDTH,
     bottomPipeHeight,
-    "dummy-pipe-bottom.png",
+    "../assets/dummy-pipe-bottom.png",
     "green"
   );
 
@@ -86,7 +101,16 @@ function resetGame() {
   obstacles = [];
   frameCount = 0;
   isGameOver = false;
+  score = 0; // Reset the score
+  // Note: highScore is NOT reset here, as it persists across games in a session.
   // spawnPipePair(); // Optionally spawn one pair immediately to start
+}
+
+function endGame() {
+  isGameOver = true;
+  if (score > highScore) {
+    highScore = score;
+  }
 }
 
 function update() {
@@ -98,14 +122,14 @@ function update() {
   if (bird.y + bird.height > canvas.height) {
     bird.y = canvas.height - bird.height;
     bird.velocityY = 0;
-    isGameOver = true;
+    endGame();
   }
 
   // Check for ceiling collision (Game Over)
   if (bird.y < 0) {
     bird.y = 0;
     bird.velocityY = 0;
-    isGameOver = true;
+    endGame();
   }
 
   // If game is over from boundary collision, stop further updates for this frame
@@ -124,9 +148,22 @@ function update() {
       bird.y < obstacle.y + obstacle.height &&
       bird.y + bird.height > obstacle.y
     ) {
-      isGameOver = true;
+      endGame();
       // No need to check other obstacles once a collision is found
       // The function will return shortly due to isGameOver check or naturally end.
+    }
+
+    // Score increment logic:
+    // If the game is not over, this obstacle is a top pipe (y === 0),
+    // it hasn't been scored yet, and the bird has passed its right edge.
+    if (
+      !isGameOver &&
+      !obstacle.passed &&
+      obstacle.y === 0 &&
+      bird.x > obstacle.x + obstacle.width
+    ) {
+      score++;
+      obstacle.passed = true; // Mark this pipe as passed for scoring
     }
   });
 
@@ -159,6 +196,12 @@ function draw() {
     obstacle.draw(ctx!); // ctx is guaranteed to be non-null here due to the check above
   });
 
+  // Draw Score
+  ctx.fillStyle = "white"; // Color for the score text
+  ctx.font = "24px Arial"; // Font size and family for the score
+  ctx.textAlign = "left";
+  ctx.fillText(`Score: ${score}`, 10, 30); // Position the score at top-left
+
   // Draw Game Over screen if applicable
   if (isGameOver) {
     ctx.fillStyle = "rgba(0, 0, 0, 0.5)"; // Semi-transparent overlay
@@ -167,12 +210,24 @@ function draw() {
     ctx.font = "40px Arial";
     ctx.fillStyle = "white";
     ctx.textAlign = "center";
-    ctx.fillText("Game Over", canvas.width / 2, canvas.height / 2 - 20);
+    ctx.fillText("Game Over", canvas.width / 2, canvas.height / 2 - 80);
+
     ctx.font = "20px Arial";
+    ctx.fillText(`Score: ${score}`, canvas.width / 2, canvas.height / 2 - 50);
     ctx.fillText(
-      "Press R to Restart",
+      `High Score: ${highScore}`,
       canvas.width / 2,
-      canvas.height / 2 + 20
+      canvas.height / 2 - 30
+    );
+
+    ctx.font = "20px Arial";
+    ctx.fillText("Press R to Restart", canvas.width / 2, canvas.height / 2);
+    ctx.fillText(
+      `Press M to change Mode (Current: ${
+        currentGameMode.charAt(0).toUpperCase() + currentGameMode.slice(1)
+      })`,
+      canvas.width / 2,
+      canvas.height / 2 + 30
     );
   }
 }
@@ -183,6 +238,10 @@ document.addEventListener("keydown", (e) => {
     bird.velocityY = bird.jumpStrength;
   } else if (e.code === "KeyR" && isGameOver) {
     resetGame();
+  } else if (e.code === "KeyM" && isGameOver) {
+    currentGameMode = currentGameMode === "normal" ? "easy" : "normal";
+    // No need to call draw() here, the gameLoop will handle it
+    // and update the displayed mode on the game over screen.
   }
 });
 

@@ -6,6 +6,7 @@ export class Obstacle {
   width: number;
   height: number;
   sprite: Sprite; // Each obstacle will have its own sprite instance
+  passed: boolean; // To track if the bird has passed this obstacle for scoring
 
   constructor(
     x: number,
@@ -21,6 +22,7 @@ export class Obstacle {
     this.height = height;
     // The Sprite class will handle drawing the placeholderColor if spriteSrc is invalid or not yet loaded.
     this.sprite = new Sprite(spriteSrc, placeholderColor);
+    this.passed = false; // Initialize passed status
   }
 
   update(speed: number): void {
